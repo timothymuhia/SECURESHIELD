@@ -1,45 +1,56 @@
-import tkinter as tk
-from tkinter import messagebox, scrolledtext
-from scanner_core import scan_website  # This will come next
+import sys
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QLabel, QVBoxLayout, QLineEdit,
+    QPushButton, QTextEdit, QMessageBox
+)
+from PyQt5.QtGui import QFont
+from scanner_core import scan_website
 
-def on_scan():
-    url = url_entry.get()
-    if not url:
-        messagebox.showwarning("Input Error", "Please enter a website URL.")
-        return
+class ScannerApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("SRCURESHIELD")
+        self.setGeometry(100, 100, 700, 500)
 
-    result_text.delete(1.0, tk.END)  # Clear old results
-    result_text.insert(tk.END, "Scanning...\n")
-    
-    # Call the backend scanner function
-    try:
-        results = scan_website(url)
-        result_text.delete(1.0, tk.END)
-        result_text.insert(tk.END, results)
-    except Exception as e:
-        result_text.insert(tk.END, f"Error during scan:\n{str(e)}")
+        self.setup_ui()
 
-# Create main window
-window = tk.Tk()
-window.title("Cyber Security Website Scanner")
-window.geometry("600x400")
-window.configure(bg="#1a1a1a")
+    def setup_ui(self):
+        layout = QVBoxLayout()
 
-# Title Label
-title_label = tk.Label(window, text="Cyber Security Website Scanner", font=("Arial", 16, "bold"), bg="#1a1a1a", fg="#00ffcc")
-title_label.pack(pady=10)
+        self.title = QLabel("SECURESHIELD")
+        self.title.setFont(QFont("Arial", 18, QFont.Bold))
+        layout.addWidget(self.title)
 
-# URL Entry
-url_entry = tk.Entry(window, font=("Arial", 12), width=50)
-url_entry.pack(pady=10)
+        self.url_input = QLineEdit()
+        self.url_input.setPlaceholderText("Enter website URL (e.g. https://example.com)")
+        layout.addWidget(self.url_input)
 
-# Scan Button
-scan_button = tk.Button(window, text="Scan Website", font=("Arial", 12, "bold"), command=on_scan, bg="#00ffcc", fg="black")
-scan_button.pack(pady=10)
+        self.scan_button = QPushButton("Scan Website")
+        self.scan_button.clicked.connect(self.start_scan)
+        layout.addWidget(self.scan_button)
 
-# Result Box
-result_text = scrolledtext.ScrolledText(window, wrap=tk.WORD, width=70, height=15, font=("Courier", 10))
-result_text.pack(pady=10)
+        self.result_box = QTextEdit()
+        self.result_box.setReadOnly(True)
+        self.result_box.setFont(QFont("Courier", 10))
+        layout.addWidget(self.result_box)
 
-# Run the GUI
-window.mainloop()
+        self.setLayout(layout)
+
+    def start_scan(self):
+        url = self.url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "Input Error", "Please enter a website URL.")
+            return
+
+        self.result_box.setText("🔄 Scanning in progress...\n")
+        try:
+            results = scan_website(url)
+            self.result_box.setText(results)
+        except Exception as e:
+            self.result_box.setText(f"❌ Error during scan:\n{str(e)}")
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = ScannerApp()
+    window.show()
+    sys.exit(app.exec_())

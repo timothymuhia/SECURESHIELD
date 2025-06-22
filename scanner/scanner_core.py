@@ -1,4 +1,8 @@
-# scanner_core.py
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+import re
 
 def scan_website(url):
-    return f"Scanned URL: {url}\n\n(No vulnerabilities detected — scanner logic coming soon!)"
+    # Your scanning logic here (same as before)
+    ...
