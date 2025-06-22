@@ -6,10 +6,11 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QColor, QTextCursor
 from PyQt5.QtCore import Qt, QTimer
+
 class ScannerApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Cyber Security Website Scanner")
+        self.setWindowTitle("SECURESHIELD")
         self.setGeometry(100, 100, 750, 600)
         self.setup_ui()
 
@@ -66,7 +67,7 @@ class ScannerApp(QWidget):
 
     def perform_full_scan(self, url):
         try:
-            web_results = (url) # type: ignore
+            web_results = (url)
             port_results = self.perform_port_scan(url)
             results = web_results + "\n" + port_results
             self.display_results(results)
