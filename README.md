@@ -9,13 +9,8 @@
 - ✅ **Website Vulnerability Scanner** (HTTPS, security headers, open ports)
 - 🔎 **Malicious Link Detection** (via Google Safe Browsing API)
 - 🖥️ **Modern PyQt5 GUI** (cross-platform interface)
-- 💾 **Saveable Reports** (generate .txt scan summaries)
-- ⚡ Fast and local (no heavy dependencies or cloud requirements)
-
----
-
-## 🚀 Getting Started
-
+- ⚡ Fast and local (no heavy dependencies or cloud requirement)
+- 
 ### ✅ Prerequisites
 
 - Python 3.8 or higher
@@ -26,12 +21,8 @@
 
 Open your terminal or command prompt and run:
 
-```bash
 # 1. Clone the repository
 git clone https://github.com/yourusername/SecureShield.git
-cd SecureShield
-ls
-cd scanner
-ls
-python main.py
+cd SECURESHIELD
+python SECURESHIELD..py
 #scan your preferrable website
