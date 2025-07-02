@@ -22,7 +22,7 @@
 Open your terminal or command prompt and run:
 
 # 1. Clone the repository
-git clone https://github.com/yourusername/SecureShield.git
+git clone https://github.com/timothymuhia/SECURESHIELD.git
 cd SECURESHIELD
 ls
 python SECURESHIELD..py
