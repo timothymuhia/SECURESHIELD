@@ -1,165 +1,94 @@
 import requests
-import socket
-import re
-import time
-from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+import re
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1'
-}
+def is_malicious_link(link):
+    """Detect potentially malicious links"""
+    malicious_patterns = [
+        r"\.(exe|scr|zip|rar|php|jar|bat|cmd|sh)\b",  # Suspicious extensions
+        r"\b(?:\d{1,3}\.){3}\d{1,3}\b",  # Raw IP addresses
+        r"(login|signin|secure|update|verify|account|admin)\b",  # Sensitive pages
+        r"(@|javascript:|data:text|vbscript:)",  # Dangerous protocols
+        r"\?.*(cmd|exec|shutdown|reboot|pwd|ls)\=",  # Suspicious parameters
+    ]
+    return any(re.search(pattern, link, re.IGNORECASE) for pattern in malicious_patterns)
 
-def check_security_headers(url):
-    """Check for the 4 most crucial security headers in HTTP response"""
-    result = "🔒 Security Headers Check (Critical Headers Only):\n"
+def scan_website(url):
+    """Main scanning function"""
+    result = []
+    
+    # Validate and normalize URL
+    if not url.startswith(('http://', 'https://')):
+        url = f'http://{url}'
+    
     try:
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
-            
-        response = requests.get(url, headers=HEADERS, timeout=10, allow_redirects=True)
-        final_url = response.url
-        result += f"Scanning: {final_url}\n\n"
+        parsed = urlparse(url)
+        if not parsed.netloc:
+            return "❌ Invalid URL format"
         
-        headers = response.headers
-        
-        # Only check these 4 critical security headers
-        security_headers = {
-            "Content-Security-Policy": "Prevents XSS attacks by controlling resource loading",
-            "Strict-Transport-Security": "Enforces HTTPS connections",
-            "X-Frame-Options": "Prevents clickjacking attacks",
-            "X-Content-Type-Options": "Prevents MIME type sniffing"
+        result.append(f"\n🔍 Scanning: {url}\n")
+        result.append(f"🌐 Domain: {parsed.netloc}\n")
+
+        # HTTPS check
+        if parsed.scheme != 'https':
+            result.append("⚠️ WARNING: No HTTPS (connection not encrypted)\n")
+        else:
+            result.append("✅ HTTPS enabled (secure connection)\n")
+
+        # Make request
+        try:
+            response = requests.get(
+                url,
+                headers={'User-Agent': 'SecurityScanner/1.0'},
+                timeout=10,
+                allow_redirects=True
+            )
+            result.append(f"✅ Connected (Status: {response.status_code})\n")
+        except requests.RequestException as e:
+            return f"❌ Connection failed: {str(e)}"
+
+        # Security headers check
+        result.append("\n🔒 Security Headers:\n")
+        required_headers = {
+            'X-XSS-Protection': '1; mode=block',
+            'Content-Security-Policy': None,
+            'Strict-Transport-Security': None,
+            'X-Frame-Options': 'DENY',
+            'X-Content-Type-Options': 'nosniff'
         }
         
-        for header, description in security_headers.items():
-            if header in headers:
-                result += f"✅ {header}: {headers[header]}\n"
+        missing = []
+        for header, expected in required_headers.items():
+            if header not in response.headers:
+                missing.append(header)
+                result.append(f"⚠️ Missing: {header}\n")
             else:
-                result += f"❌ {header}: Missing\n"
-                result += f"   ⚠️ Risk: {description.split(':')[0]} vulnerability\n"
-                
-        # Add a summary of critical security
-        missing_headers = [h for h in security_headers if h not in headers]
-        if missing_headers:
-            result += "\n🔴 CRITICAL WARNING:\n"
-            result += f"   Missing {len(missing_headers)} crucial security headers:\n"
-            for header in missing_headers:
-                result += f"      • {header}\n"
-            result += "   This significantly increases vulnerability to attacks!\n"
-        else:
-            result += "\n🟢 All critical security headers present!\n"
-                
-        return result
-        
-    except Exception as e:
-        return f"❌ Header check failed: {str(e)}"
+                status = f"✅ Present: {header}"
+                if expected and expected not in response.headers[header]:
+                    status += f" (Expected: {expected})"
+                result.append(status + "\n")
 
-def extract_and_check_links(url):
-    """Extract and analyze links from a webpage"""
-    result = "\n🔗 Link Analysis:\n"
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        links = [a.get('href') for a in soup.find_all('a', href=True)]
-        
-        result += f"Found {len(links)} links\n"
-        
-        suspicious_links = []
-        patterns = [
-            r'javascript:',
-            r'data:',
-            r'vbscript:',
-            r'about:blank',
-            r'\.exe$',
-            r'\.zip$',
-            r'\.dmg$',
-            r'\.bat$',
-            r'\.sh$'
-        ]
-        
-        for link in links:
-            if link and any(re.search(pattern, link, re.IGNORECASE) for pattern in patterns):
-                suspicious_links.append(link)
-        
-        if suspicious_links:
-            result += "⚠️ Suspicious links found:\n"
-            for slink in suspicious_links[:5]:
-                result += f"   • {slink}\n"
-            result += f"Total suspicious: {len(suspicious_links)}\n"
-        else:
-            result += "✅ No obviously suspicious links found\n"
-            
-        return result
-        
-    except Exception as e:
-        return f"\n❌ Link analysis failed: {str(e)}"
+        if missing:
+            result.append("\n🚨 Critical security headers missing!\n")
 
-def basic_port_scan(target):
-    """Scan top 10 security-critical ports"""
-    result = "\n🚪 Port Scan Results (Top 10 Critical Ports):\n"
-    try:
-        domain = urlparse(target).netloc.split(':')[0]
-        if not domain:
-            return "❌ Invalid domain for port scan"
-            
-        # Top 10 most common and security-critical ports
-        ports = [
-            21,   # FTP - File Transfer Protocol
-            22,   # SSH - Secure Shell
-            25,   # SMTP - Simple Mail Transfer Protocol
-            53,   # DNS - Domain Name System
-            80,   # HTTP - Hypertext Transfer Protocol
-            110,  # POP3 - Post Office Protocol
-            143,  # IMAP - Internet Message Access Protocol
-            443,  # HTTPS - HTTP Secure
-            3389, # RDP - Remote Desktop Protocol
-            8080  # HTTP Alternate
-        ]
+        # Link analysis
+        result.append("\n📎 Link Analysis:\n")
+        soup = BeautifulSoup(response.text, 'html.parser')
+        links = [a.get('href', '') for a in soup.find_all('a') if a.get('href')]
+        result.append(f"• Total links found: {len(links)}\n")
         
-        ip = socket.gethostbyname(domain)
-        result += f"Target: {domain} ({ip})\n"
-        
-        open_ports = []
-        for port in ports:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                    sock.settimeout(1)
-                    res = sock.connect_ex((ip, port))
-                    if res == 0:
-                        try:
-                            service = socket.getservbyport(port, 'tcp')
-                        except:
-                            service = "unknown"
-                        open_ports.append(port)
-                        result += f"   🔓 Port {port} ({service}): OPEN\n"
-                    else:
-                        result += f"   🔒 Port {port}: Closed\n"
-            except:
-                pass
-            time.sleep(0.1)
-        
-        # Security assessment for critical ports
-        risky_ports = [21, 22, 25, 80, 143, 3389]
-        found_risky = [port for port in open_ports if port in risky_ports]
-        
-        if found_risky:
-            result += "\n⚠️ WARNING: Potentially risky ports open!\n"
-            port_names = {
-                21: "FTP (File Transfer) - Vulnerable to brute force attacks",
-                22: "SSH (Secure Shell) - Can be exploited if weak credentials",
-                25: "SMTP (Email) - Can be abused for spam/phishing",
-                80: "HTTP (Web) - Unencrypted traffic, vulnerable to snooping",
-                143: "IMAP (Email) - Unencrypted email access",
-                3389: "RDP (Remote Desktop) - Vulnerable to brute force attacks"
-            }
-            for port in found_risky:
-                result += f"   • Port {port}: {port_names.get(port, 'Unknown service')}\n"
-            result += "   Recommendation: Close or secure these ports\n"
-        
-        return result
-        
+        malicious = [link for link in links if is_malicious_link(link)]
+        if malicious:
+            result.append("\n🚨 Potentially malicious links:\n")
+            for bad in malicious[:5]:  # Show first 5 examples
+                result.append(f"• {bad}\n")
+            if len(malicious) > 5:
+                result.append(f"• Plus {len(malicious)-5} more...\n")
+        else:
+            result.append("✅ No obvious malicious links found\n")
+
+        return ''.join(result)
+
     except Exception as e:
-        return f"\n❌ Port scan failed: {str(e)}"
+        return f"❌ Scan error: {str(e)}"
