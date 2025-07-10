@@ -12,7 +12,7 @@ from backend_scanner import scan_website
 class ScannerApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Cyber Security Website Scanner")
+        self.setWindowTitle("SECURESHIELD-for website reconnaissance")
         self.setGeometry(100, 100, 800, 650)
         self.setup_ui()
 
@@ -20,7 +20,7 @@ class ScannerApp(QWidget):
         layout = QVBoxLayout()
 
         # Header
-        self.title = QLabel("Website Security Scanner")
+        self.title = QLabel("SECURESHIELD-for website reconnaissance")
         self.title.setFont(QFont("Arial", 20, QFont.Bold))
         self.title.setStyleSheet("color: #2ecc71")
         self.title.setAlignment(Qt.AlignCenter)
