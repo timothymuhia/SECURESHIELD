@@ -1,0 +1,41 @@
+
+🔍 Scanning: https://rvibs.ac.ke
+🌐 Domain: rvibs.ac.ke
+✅ HTTPS enabled (secure connection)
+✅ Connected (Status: 200)
+
+🔒 Security Headers:
+⚠️ Missing: X-XSS-Protection
+⚠️ Missing: Content-Security-Policy
+⚠️ Missing: Strict-Transport-Security
+✅ Present: X-Frame-Options (Expected: DENY)
+⚠️ Missing: X-Content-Type-Options
+
+🚨 Critical security headers missing!
+
+📎 Link Analysis:
+• Total links found: 184
+
+🚨 Potentially malicious links:
+• mailto:admin@rvibs.ac.ke
+• https://portal.rvibs.ac.ke/stdnt_l.php
+• https://eschool.rvibs.ac.ke/application/selectCourse.php
+• https://eschool.rvibs.ac.ke/application/selectCourse.php
+• https://eschool.rvibs.ac.ke/application/selectCourse.php
+• Plus 3 more...
+
+
+🔌 Scanning Top 10 Ports:
+📡 Target: rvibs.ac.ke
+
+🚨 OPEN: 21 (FTP)
+🚨 OPEN: 22 (SSH)
+🚨 OPEN: 80 (HTTP)
+🚨 OPEN: 443 (HTTPS)
+🚨 OPEN: 3306 (MySQL)
+🚨 OPEN: 3389 (RDP)
+🚨 OPEN: 53 (DNS)
+🚨 OPEN: 25 (SMTP)
+🚨 OPEN: 110 (POP3)
+🚨 OPEN: 143 (IMAP)
+

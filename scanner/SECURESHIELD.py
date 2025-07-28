@@ -1,13 +1,14 @@
 import sys
 import socket
+import subprocess
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout, QLineEdit,
     QPushButton, QTextEdit, QMessageBox, QFileDialog, QHBoxLayout
 )
 from PyQt5.QtGui import QFont, QColor, QTextCursor
 from PyQt5.QtCore import Qt, QTimer
-from urllib.parse import urlparse  # Added this import
-from backend_scanner import scan_website
+from urllib.parse import urlparse
+from backend_scanner import scan_website  # Your custom scanning logic
 
 class ScannerApp(QWidget):
     def __init__(self):
@@ -41,6 +42,12 @@ class ScannerApp(QWidget):
         self.scan_button.clicked.connect(self.start_full_scan)
         button_layout.addWidget(self.scan_button)
 
+        self.nmap_button = QPushButton("📡 Nmap port Scan")
+        self.nmap_button.setFont(QFont("Arial", 12))
+        self.nmap_button.setStyleSheet("background-color: #3498db; color: white; padding: 8px")
+        self.nmap_button.clicked.connect(self.start_nmap_scan)
+        button_layout.addWidget(self.nmap_button)
+
         self.save_button = QPushButton("💾 Save Results")
         self.save_button.setFont(QFont("Arial", 12))
         self.save_button.setStyleSheet("background-color: #34495e; color: white; padding: 8px")
@@ -67,87 +74,89 @@ class ScannerApp(QWidget):
 
         self.result_box.clear()
         self.scan_button.setEnabled(False)
+        self.nmap_button.setEnabled(False)
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        
+
         QTimer.singleShot(100, lambda: self.run_scans(url))
 
     def run_scans(self, url):
         try:
-            # Run website scan
+            # Only run website scan (missing headers and malicious links)
             web_results = scan_website(url)
             self.display_results(web_results)
-            
-            # Run port scan
-            port_results = self.perform_port_scan(url)
-            self.display_results(port_results)
-            
+
             self.save_button.setEnabled(True)
         except Exception as e:
-            self.result_box.append(f"❌ Error: {str(e)}")
+            self.display_results(f"❌ Error: {str(e)}")
         finally:
             self.scan_button.setEnabled(True)
+            self.nmap_button.setEnabled(True)
             QApplication.restoreOverrideCursor()
 
-    def perform_port_scan(self, url):
-        """Scan top 10 common ports"""
-        result = ["\n🔌 Scanning Top 10 Ports:\n"]
-        
+    def start_nmap_scan(self):
+        url = self.url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "Error", "Please enter a website URL")
+            return
+
+        # Extract hostname
+        parsed = urlparse(url if '://' in url else f'http://{url}')
+        host = parsed.hostname or url.split('/')[0]
+
+        if not host:
+            self.display_results("\n⚠️ Invalid host for port scanning\n")
+            return
+
+        self.result_box.clear()
+        self.scan_button.setEnabled(False)
+        self.nmap_button.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        QTimer.singleShot(100, lambda: self.run_nmap_scan(host))
+
+    def run_nmap_scan(self, host):
         try:
-            # Extract hostname
-            parsed = urlparse(url if '://' in url else f'http://{url}')
-            host = parsed.hostname or url.split('/')[0]
-            
-            if not host:
-                return "\n⚠️ Invalid host for port scanning\n"
-            
-            result.append(f"📡 Target: {host}\n\n")
-            
-            # Top 10 common ports
-            ports = {
-                21: "FTP",
-                22: "SSH", 
-                80: "HTTP",
-                443: "HTTPS",
-                3306: "MySQL",
-                3389: "RDP",
-                53: "DNS",
-                25: "SMTP", 
-                110: "POP3",
-                143: "IMAP"
-            }
-            
-            for port, service in ports.items():
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.settimeout(1.5)
-                        if s.connect_ex((host, port)) == 0:
-                            result.append(f"🚨 OPEN: {port} ({service})\n")
-                        else:
-                            result.append(f"✅ Closed: {port} ({service})\n")
-                except:
-                    result.append(f"⚠️ Error checking {port}\n")
-            
-            return ''.join(result)
-        
+            nmap_results = self.execute_nmap(host)
+            formatted_results = f"📡 Nmap Port Scan Results:\n\n{nmap_results}"
+            self.display_results(formatted_results)
         except Exception as e:
-            return f"\n❌ Port scan failed: {str(e)}\n"
+            self.display_results(f"❌ Error: {str(e)}")
+        finally:
+            self.scan_button.setEnabled(True)
+            self.nmap_button.setEnabled(True)
+            self.save_button.setEnabled(True)
+            QApplication.restoreOverrideCursor()
+
+    def execute_nmap(self, host):
+        try:
+            cmd = ["nmap", "-Pn", "--disable-arp-ping", "-sT", "-F", host]
+            output = subprocess.check_output(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
+            return output
+        except subprocess.CalledProcessError as e:
+            return f"❌ Nmap failed:\n{e.output}"
+        except FileNotFoundError:
+            return "❌ Nmap not found. Please install Nmap and try again.\n"
+        except Exception as e:
+            return f"❌ Unexpected error: {str(e)}"
 
     def display_results(self, text):
         cursor = self.result_box.textCursor()
         cursor.movePosition(QTextCursor.End)
-        
+
         for line in text.split('\n'):
             if "✅" in line or "Present:" in line:
                 self.result_box.setTextColor(QColor("#2ecc71"))  # Green
-            elif "⚠️" in line:
+            elif "⚠️" in line or "Error" in line:
                 self.result_box.setTextColor(QColor("#f39c12"))  # Orange
-            elif "🚨" in line or "OPEN:" in line:
+            elif "🚨" in line or "OPEN:" in line or "❌" in line:
                 self.result_box.setTextColor(QColor("#e74c3c"))  # Red
+            elif "📡" in line or "Target:" in line:
+                self.result_box.setTextColor(QColor("#3498db"))  # Blue
             else:
-                self.result_box.setTextColor(QColor("#ecf0f1"))  # White
-            
+                self.result_box.setTextColor(QColor("#ecf0f1"))  # Default white
+
             cursor.insertText(line + '\n')
-        
+
         self.result_box.ensureCursorVisible()
 
     def save_results(self):
@@ -162,7 +171,7 @@ class ScannerApp(QWidget):
             "scan_results.txt",
             "Text Files (*.txt);;All Files (*)"
         )
-        
+
         if filename:
             try:
                 with open(filename, 'w', encoding='utf-8') as f:
